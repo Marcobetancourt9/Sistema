@@ -54,20 +54,21 @@ export default function Registro() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-lg">
 
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/20 border border-blue-400/30 mb-4">
-            <ChefHat size={32} className="text-blue-400" />
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-blue-500/20 border border-blue-400/30 mb-3 sm:mb-4">
+            <ChefHat size={28} className="text-blue-400 sm:hidden" />
+            <ChefHat size={32} className="text-blue-400 hidden sm:block" />
           </div>
-          <h1 className="text-3xl font-bold text-white">Registro de Comensales</h1>
-          <p className="text-slate-400 mt-1 text-sm">Registra la entrada al comedor</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Registro de Comensales</h1>
+          <p className="text-slate-400 mt-1 text-xs sm:text-sm">Registra la entrada al comedor</p>
         </div>
 
         {/* Card */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 sm:p-8 shadow-2xl">
 
           {status === 'success' ? (
             <div className="flex flex-col items-center justify-center py-10 gap-4 text-center">
