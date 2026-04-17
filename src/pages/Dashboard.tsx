@@ -1,11 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { Users, TrendingUp, Building2, Clock, ChefHat } from 'lucide-react';
+import { Users, TrendingUp, Building2, Clock, ChefHat, Download, Trash2, X } from 'lucide-react';
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const COLORS = ['#3b82f6', '#06b6d4', '#8b5cf6', '#f59e0b', '#10b981', '#f43f5e', '#84cc16'];
@@ -73,6 +73,60 @@ function RegistroCard({ r }: { r: Registro }) {
 export default function Dashboard() {
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // States for deleting Database
+  const [showModal, setShowModal] = useState(false);
+  const [password, setPassword] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const handleDownloadCSV = () => {
+    const encabezados = ['Nombre', 'ID Empleado', 'Departamento', 'Fecha', 'Hora'];
+    
+    const filas = registros.map(r => {
+      let fecha = '—';
+      let hora = '—';
+      if (r.fechaHora) {
+        const d = new Date(r.fechaHora.seconds * 1000);
+        fecha = d.toLocaleDateString('es-ES');
+        hora = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      }
+      return `"${r.nombre}";"${r.idEmpleado}";"${r.departamento}";"${fecha}";"${hora}"`;
+    });
+
+    const BOM = '\uFEFF';
+    const contenidoCsv = BOM + [encabezados.join(';'), ...filas].join('\n');
+    
+    const blob = new Blob([contenidoCsv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const element = document.createElement('a');
+    element.href = url;
+    element.setAttribute('download', `Registros_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.csv`);
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const handleDeleteDB = async () => {
+    if (password !== 'admin123') {
+      setDeleteError('Contraseña incorrecta');
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError('');
+    try {
+      const promises = registros.map(r => deleteDoc(doc(db, 'registros', r.id)));
+      await Promise.all(promises);
+      setShowModal(false);
+      setPassword('');
+    } catch (error) {
+      console.error("Error al borrar la base de datos:", error);
+      setDeleteError('Ocurrió un error al borrar los datos');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Real-time listener
   useEffect(() => {
@@ -311,6 +365,93 @@ export default function Dashboard() {
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
+        <button
+          onClick={handleDownloadCSV}
+          className="w-14 h-14 bg-emerald-600 hover:bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20 text-white flex items-center justify-center transition-all active:scale-95 hover:-translate-y-1"
+          title="Descargar Excel/CSV"
+        >
+          <Download size={22} />
+        </button>
+        <button
+          onClick={() => setShowModal(true)}
+          className="w-14 h-14 bg-rose-600 hover:bg-rose-500 rounded-2xl shadow-lg shadow-rose-500/20 text-white flex items-center justify-center transition-all active:scale-95 hover:-translate-y-1"
+          title="Borrar Base de Datos"
+        >
+          <Trash2 size={22} />
+        </button>
+      </div>
+
+      {/* Delete Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity"
+             onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
+        >
+          <div className="bg-slate-900 border border-slate-700 p-6 rounded-3xl w-full max-w-sm shadow-2xl relative transform transition-all">
+            <button 
+              onClick={() => {
+                setShowModal(false);
+                setPassword('');
+                setDeleteError('');
+              }}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X size={18} />
+            </button>
+            <div className="flex items-center gap-3 mb-4 text-rose-500">
+              <div className="bg-rose-500/20 p-2.5 rounded-xl border border-rose-500/20">
+                <Trash2 size={24} />
+              </div>
+              <h2 className="text-xl font-bold text-white">Borrar Datos</h2>
+            </div>
+            <p className="text-sm text-slate-300 mb-6 leading-relaxed">
+              ¿Estás seguro que deseas borrar todos los registros? Esta acción <strong className="text-rose-400">no se puede deshacer</strong>. Por favor ingresa la contraseña maestra para confirmar.
+            </p>
+            <input 
+              type="password"
+              placeholder="Contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 text-white px-4 py-3 rounded-xl outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500/50 transition-all mb-2 placeholder:text-slate-600"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && password) handleDeleteDB();
+              }}
+            />
+            {deleteError && (
+              <p className="text-rose-500 text-xs font-medium pl-1">{deleteError}</p>
+            )}
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                  setPassword('');
+                  setDeleteError('');
+                }}
+                className="px-5 py-2.5 text-slate-300 hover:bg-slate-800 rounded-xl transition-colors font-medium text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteDB}
+                disabled={isDeleting || !password}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white rounded-xl transition-all font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Borrando...
+                  </>
+                ) : (
+                  'Borrar Todo'
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
