@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Users, BarChart3, ChefHat, Menu, X } from 'lucide-react';
+import { InstallAppButton } from './InstallAppButton';
 
 const navItems = [
   { to: '/', label: 'Reportes de Gestión', icon: BarChart3, end: true },
@@ -90,8 +91,11 @@ export default function Layout() {
         </nav>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/10">
-          <p className="text-slate-600 text-xs">© 2025 ComedorAdmin</p>
+        <div className="p-4 border-t border-white/10 flex flex-col gap-4">
+          <InstallAppButton />
+          <div className="px-2">
+            <p className="text-slate-500 text-xs">© 2025 ComedorAdmin</p>
+          </div>
         </div>
       </aside>
 

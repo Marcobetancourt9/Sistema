@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { Users, TrendingUp, Building2, Clock, ChefHat, Download, Trash2, X } from 'lucide-react';
+import { Users, TrendingUp, Building2, Clock, ChefHat, Download, Trash2, X, Search, Calendar, Filter } from 'lucide-react';
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const COLORS = ['#3b82f6', '#06b6d4', '#8b5cf6', '#f59e0b', '#10b981', '#f43f5e', '#84cc16'];
@@ -74,6 +74,35 @@ export default function Dashboard() {
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+  const [filterDepto, setFilterDepto] = useState('');
+
+  const departamentosUnicos = useMemo(() => {
+    return Array.from(new Set(registros.map(r => r.departamento).filter(Boolean))).sort();
+  }, [registros]);
+
+  const filteredRegistros = useMemo(() => {
+    return registros.filter((r) => {
+      const matchName = r.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchDepto = filterDepto ? r.departamento === filterDepto : true;
+      let matchDate = true;
+      if (filterDate) {
+        if (!r.fechaHora) {
+          matchDate = false;
+        } else {
+          const d = new Date(r.fechaHora.seconds * 1000);
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          matchDate = `${year}-${month}-${day}` === filterDate;
+        }
+      }
+      return matchName && matchDepto && matchDate;
+    });
+  }, [registros, searchTerm, filterDepto, filterDate]);
+
   // States for deleting Database
   const [showModal, setShowModal] = useState(false);
   const [password, setPassword] = useState('');
@@ -83,7 +112,7 @@ export default function Dashboard() {
   const handleDownloadCSV = () => {
     const encabezados = ['Nombre', 'ID Empleado', 'Departamento', 'Fecha', 'Hora'];
     
-    const filas = registros.map(r => {
+    const filas = filteredRegistros.map(r => {
       let fecha = '—';
       let hora = '—';
       if (r.fechaHora) {
@@ -305,53 +334,101 @@ export default function Dashboard() {
 
           {/* Recent registros — responsive */}
           <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-sm">
-            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-white/10">
-              <h2 className="text-white font-semibold text-sm sm:text-base">Últimas entradas</h2>
-              <p className="text-slate-400 text-xs">Los registros más recientes del comedor</p>
+            <div className="px-4 sm:px-6 py-4 border-b border-white/10 space-y-4">
+              <div>
+                <h2 className="text-white font-semibold text-sm sm:text-base">Registros</h2>
+                <p className="text-slate-400 text-xs">Lista completa de comensales y filtros</p>
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Buscar por nombre..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-2 border border-white/10 rounded-xl leading-5 bg-white/5 text-slate-300 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-3 min-w-0">
+                  <div className="relative flex-1 sm:w-40">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Calendar className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                      type="date"
+                      value={filterDate}
+                      onChange={(e) => setFilterDate(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-2 border border-white/10 rounded-xl leading-5 bg-white/5 text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm [color-scheme:dark]"
+                    />
+                  </div>
+
+                  <div className="relative flex-1 sm:w-48">
+                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Filter className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <select
+                      value={filterDepto}
+                      onChange={(e) => setFilterDepto(e.target.value)}
+                      className="block w-full pl-10 pr-8 py-2 border border-white/10 rounded-xl leading-5 bg-slate-800 text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm appearance-none"
+                    >
+                      <option value="">Todos los deptos.</option>
+                      {departamentosUnicos.map(depto => (
+                        <option key={depto} value={depto}>{depto}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Mobile list view */}
-            <div className="sm:hidden p-3 space-y-2">
-              {registros.length === 0 ? (
+            <div className="sm:hidden p-3 space-y-2 max-h-[500px] overflow-y-auto">
+              {filteredRegistros.length === 0 ? (
                 <div className="text-center text-slate-500 py-10 text-sm">
-                  No hay registros todavía. ¡Registra el primer comensal!
+                  {registros.length === 0 ? 'No hay registros todavía.' : 'No hay resultados para esta búsqueda.'}
                 </div>
               ) : (
-                registros.slice(0, 10).map((r) => (
+                filteredRegistros.map((r) => (
                   <RegistroCard key={r.id} r={r} />
                 ))
               )}
             </div>
 
             {/* Desktop table view */}
-            <div className="hidden sm:block overflow-x-auto">
+            <div className="hidden sm:block max-h-[500px] overflow-auto">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/5">
-                    <th className="text-left text-slate-400 font-medium px-6 py-3">Nombre</th>
-                    <th className="text-left text-slate-400 font-medium px-6 py-3">ID Empleado</th>
-                    <th className="text-left text-slate-400 font-medium px-6 py-3">Departamento</th>
-                    <th className="text-left text-slate-400 font-medium px-6 py-3">Fecha y hora</th>
+                <thead className="sticky top-0 bg-[#0f172a] sm:bg-transparent backdrop-blur-md z-10 before:absolute before:inset-0 before:bg-white/5">
+                  <tr className="border-b border-white/10 relative">
+                    <th className="text-left text-slate-400 font-medium px-6 py-3 whitespace-nowrap relative">Nombre</th>
+                    <th className="text-left text-slate-400 font-medium px-6 py-3 whitespace-nowrap relative">ID Empleado</th>
+                    <th className="text-left text-slate-400 font-medium px-6 py-3 whitespace-nowrap relative">Departamento</th>
+                    <th className="text-left text-slate-400 font-medium px-6 py-3 whitespace-nowrap relative">Fecha y hora</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {registros.length === 0 && (
+                  {filteredRegistros.length === 0 && (
                     <tr>
                       <td colSpan={4} className="text-center text-slate-500 py-10">
-                        No hay registros todavía. ¡Registra el primer comensal!
+                        {registros.length === 0 ? 'No hay registros todavía.' : 'No hay resultados para esta búsqueda.'}
                       </td>
                     </tr>
                   )}
-                  {registros.slice(0, 10).map((r) => (
+                  {filteredRegistros.map((r) => (
                     <tr key={r.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                       <td className="px-6 py-3 text-white font-medium">{r.nombre}</td>
                       <td className="px-6 py-3 text-slate-300">{r.idEmpleado}</td>
                       <td className="px-6 py-3">
-                        <span className="bg-blue-500/15 text-blue-300 border border-blue-500/20 px-2.5 py-0.5 rounded-full text-xs">
+                        <span className="bg-blue-500/15 text-blue-300 border border-blue-500/20 px-2.5 py-0.5 rounded-full text-xs whitespace-nowrap">
                           {r.departamento}
                         </span>
                       </td>
-                      <td className="px-6 py-3 text-slate-400">
+                      <td className="px-6 py-3 text-slate-400 whitespace-nowrap">
                         {r.fechaHora
                           ? new Date(r.fechaHora.seconds * 1000).toLocaleString('es-ES', {
                               day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
